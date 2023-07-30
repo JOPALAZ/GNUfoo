@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <getopt.h>
 #include <stdbool.h>
+#include <math.h>
 #include <string.h>
 enum StatsType{None=0,Average=1,Dispersional=2};
 struct Buffer
@@ -10,13 +11,30 @@ struct Buffer
 	__u_long size;
 	__u_long capcity;
 };
+struct Output
+{
+	char* string;
+	__u_long size;
+	__u_long capcity;
+};
 static bool gotStatsType=false;
 static enum StatsType givenStatsType=None;
 static int n=-1;
 const int BUFFER_SIZE = 1024;
-char *outputFilename = "values.txt";
-
-void handleInput(int argc, char *argv[]){
+const __u_long DEFAULT_CAPACITY=1;
+const int precission=6;
+unsigned char getLengthBeforeDot(float in)
+{
+	unsigned char counter=0;
+	__uint32_t num=(__uint32_t)(in);
+	while (num)
+	{
+		counter++;
+		num=num/10;
+	}
+	return counter;
+}
+void handleParameters(int argc, char *argv[]){
 	    int opt;
 		bool error=false;
 		char* errorCode=NULL;
@@ -68,7 +86,7 @@ void handleInput(int argc, char *argv[]){
 		exit(EXIT_FAILURE);
 	}
 }
-struct Buffer* createBuffer(int capacity)
+struct Buffer* createBuffer(__u_long capacity)
 {
 	struct Buffer* buf=malloc(sizeof(struct Buffer));
 	if(buf)
@@ -88,12 +106,10 @@ bool addElementToBuffer(struct Buffer* buf,__uint32_t val)
 
 	if(buf->size==buf->capcity)
 	{
-		__uint32_t* safetyBuf=malloc((buf->capcity<<1)*sizeof(__uint32_t)); 
+		__uint32_t* safetyBuf=realloc(buf->arr,(buf->capcity<<1)*sizeof(__uint32_t)); 
 		if(safetyBuf)
 		{
-			memcpy(safetyBuf,buf->arr,buf->capcity*sizeof(__uint32_t));
-			free(buf->arr);
-			buf->arr=safetyBuf;
+			buf->arr=safetyBuf; // doesn't acctually make sense, cuz they would point to same memory adress, but it makes code more readable
 			buf->capcity=buf->capcity<<1;
 			
 		}
@@ -114,14 +130,11 @@ bool mergeBuffers(struct Buffer* buf,__uint32_t* vals,__uint32_t bytesRead)
 		__u_long newByteCapacity=buf->capcity<<1*sizeof(__uint32_t);
 		if(newByteCapacity<buf->size*sizeof(__uint32_t)+bytesRead)
 		{
-			int lostBytes=(buf->size*sizeof(__uint32_t)+bytesRead)%sizeof(__uint32_t);
-			newByteCapacity=buf->size*sizeof(__uint32_t)+bytesRead+lostBytes;
+			newByteCapacity=buf->size*sizeof(__uint32_t)+bytesRead;
 		}
-		__uint32_t* safetyBuf=malloc(newByteCapacity); 
+		__uint32_t* safetyBuf=realloc(buf->arr,newByteCapacity); 
 		if(safetyBuf)
 		{
-			memcpy(safetyBuf,buf->arr,buf->capcity*sizeof(__uint32_t));
-			free(buf->arr);
 			buf->arr=safetyBuf;
 			buf->capcity=newByteCapacity/sizeof(__uint32_t);
 		}
@@ -131,78 +144,177 @@ bool mergeBuffers(struct Buffer* buf,__uint32_t* vals,__uint32_t bytesRead)
 		}
 	}
 	memcpy(buf->arr+buf->size,vals,bytesRead);
-	buf->size+=(bytesRead+bytesRead%sizeof(__uint32_t))/sizeof(__uint32_t);
+	buf->size+=bytesRead/sizeof(__uint32_t);
 	return true;
 
 }
-void outputBuffer(struct Buffer* buf)
+struct Output* createOutput(__u_long capacity)
 {
-	__uint32_t* output;
-	FILE *fp = fopen(outputFilename, "w");
-	    if (fp == NULL)
-    {
-        fprintf(stderr,"Error opening the file %s", outputFilename);
-		exit(EXIT_FAILURE);
-    }
-	int divisionParts=0;
-	do
+	struct Output* out=malloc(sizeof(struct Output));
+	if(out)
 	{
-		if(!divisionParts)
+	out->capcity=capacity;
+	out->size=0;
+	out->string=malloc(capacity*sizeof(char));
+		if(out->string)
 		{
-			divisionParts=1;
+			return out;
+		}
+	}
+	return NULL;
+	
+}
+bool addCharToOutput(struct Output* out,char ch)
+{
+	if(out->size+1>=out->capcity)
+	{
+		char* safetyString=realloc(out->string,out->capcity<<1*sizeof(char));
+		if(!safetyString)
+		{
+			return false;
 		}
 		else
 		{
-			divisionParts=divisionParts<<1;
+			out->string=safetyString;
+			out->capcity=out->capcity<<1;
 		}
-		if(buf->size%divisionParts!=0)
-		{
-			divisionParts=-1;
-			break;
-		}
-		output=malloc(buf->size*sizeof(__uint32_t)/divisionParts);
 	}
-	while(!output);
-	if(divisionParts>0)
+	out->string[out->size]=ch;
+}
+
+bool addStringToOutput(struct Output* out, char* arr, unsigned stringSize)
+{
+
+	if(out->capcity<out->size+stringSize)
+		{
+			__u_long newByteCapacity=out->capcity<<1*sizeof(char);
+			if(newByteCapacity<out->size*sizeof(char)+stringSize*sizeof(char))
+			{
+				newByteCapacity=out->size*sizeof(char)+stringSize*sizeof(char);
+			}
+			char* safetyBuf=realloc(out->string,newByteCapacity); 
+			if(safetyBuf)
+			{
+				out->string=safetyBuf;
+				out->capcity=newByteCapacity/sizeof(char);
+			}
+			else
+			{
+				return false;
+			}
+		}
+	memcpy(out->string+out->size,arr,stringSize*sizeof(char));
+	out->size+=stringSize-1;
+	out->string[out->size]='\0'; 
+	return true;
+
+	
+}
+
+bool addRecordOfFloatToOutput(struct Output* out,float val)
+{
+	unsigned bufsize=precission+getLengthBeforeDot(val)+2;
+	char* buf=malloc(sizeof(char)*bufsize);
+	gcvt(val,bufsize-2,buf);
+	if(buf)
 	{
-		for(int shift=0;shift<divisionParts;++shift)
+		if(!addStringToOutput(out,buf,bufsize))
 		{
-		for(int i=buf->size*shift/divisionParts;i<buf->size*(shift+1)/divisionParts;++i)
-		{
-			output[i%(buf->size*shift/divisionParts)]=(__int32_t)(buf->arr[i]<<15)>>15;
+			return false;
 		}
-		for(int i=0;i<buf->size/divisionParts;++i)
-		{
-			fprintf(fp,"%i\n",output[i]);
-		}
-		}
+		addCharToOutput(out,'\n');
+		return true;
+	}
+	else
+	{
+		return false;
 	}
 
 }
-struct Buffer* getInput(struct Buffer* buf)
+float calculateAverage(__uint32_t* arr,__u_long startPos,__u_long range)
+{
+	__int32_t sum=0;
+	for(__u_long i=0;i<range;++i)
+	{
+		sum+=((__int32_t)(arr[i+startPos]<<15))>>15;
+	}
+	return (float)(sum)/range;
+}
+
+float calculateDispersion(__uint32_t* arr,__u_long startPos,__u_long range,float average)
+{
+	float sum=0;
+	for(int i=0;i<range;++i)
+	{
+		sum+=pow((((__int32_t)(arr[i+startPos]<<15))>>15)-average,2);
+	}
+	return sum/range;
+}	
+int processBuffer(struct Buffer* buf,struct Output* out,bool isFinished)
+{
+ 	int rest=buf->size%n;
+	__u_long i,j;
+	__u_long sum;
+	float recordValue=0;
+	for(i=0;i<buf->size/n;++i)
+	{
+		
+		if(givenStatsType==Average)
+		{
+		 	recordValue=calculateAverage(buf->arr,i*n,n);
+		}
+		else if(givenStatsType==Dispersional)
+		{
+			recordValue=calculateDispersion(buf->arr,i*n,n,calculateAverage(buf->arr,i*n,n));
+		}
+		else
+		{
+			fprintf(stderr,"Bad memory integrity, tampering with an important variable was found or value has changed due to unknown reasons");
+			exit(EXIT_FAILURE);
+		}
+		if(!addRecordOfFloatToOutput(out,recordValue))
+		{
+			fprintf(stdout,"%s",out->string);
+			out->size=0;
+			out->string[out->size]='\0';
+			if(!addRecordOfFloatToOutput(out,recordValue))
+			{
+				fprintf(stdout,"%.*f\n",precission,recordValue);
+			}
+		}
+
+	}
+}
+
+struct Buffer* getInput(struct Buffer* buf,struct Output* out)
 {
     __uint32_t* input_buffer;
 	input_buffer=malloc(sizeof(__uint32_t)*BUFFER_SIZE);
 	if(!input_buffer)
 	{
-		fprintf(stderr,"Bad alloc, immposible to allocate necesarry resources");
+		fprintf(stderr,"Bad alloc, immposible to store necesarry resources");
 		exit(EXIT_FAILURE);
 	}
     // Читаем данные из стандартного ввода (stdin) в буфер
     __uint32_t bytesRead;
     while ((bytesRead = fread(input_buffer, sizeof(__uint32_t), BUFFER_SIZE, stdin)) > 0) 
 	{
+		if(bytesRead%sizeof(__uint32_t))
+		{
+			bytesRead+=sizeof(__uint32_t)-bytesRead%sizeof(__uint32_t);
+		}
 		if(!mergeBuffers(buf,input_buffer,bytesRead))
 		{
-			for(int i=0;i<(bytesRead+bytesRead%sizeof(__uint32_t))/sizeof(__uint32_t);++i)
+
+			for(int i=0;i<bytesRead/sizeof(__uint32_t);++i)
 			{
 				if(!addElementToBuffer(buf,input_buffer[i]))
 				{
-					outputBuffer(buf);
+					processBuffer(buf,out,false);
 					buf->size=0;
 					if(!addElementToBuffer(buf,input_buffer[i]))
 					{
-						fprintf(stderr,"Bad alloc, immposible to allocate necesarry resources");
+						fprintf(stderr,"Bad alloc, immposible to store necesarry resources");
 						exit(EXIT_FAILURE);
 					}
 				}
@@ -210,14 +322,14 @@ struct Buffer* getInput(struct Buffer* buf)
 		}
 
     }
-	outputBuffer(buf);
 
 }
 
 int main(int argc, char *argv[]) {
 
-	//handleInput(argc,argv);
-	struct Buffer* buffer= createBuffer(1);
-	getInput(buffer);
+	//handleParameters(argc,argv);
+	struct Buffer* buffer= createBuffer(DEFAULT_CAPACITY);
+	struct Output* out = createOutput(DEFAULT_CAPACITY); 
+	getInput(buffer,out);
     return 0; // Return 0 to indicate successful execution
 }
