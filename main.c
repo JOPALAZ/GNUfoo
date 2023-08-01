@@ -22,6 +22,7 @@ static enum StatsType givenStatsType=None;
 static int n=-1;
 static float preAmpGain=0.f;
 static float ampGain=0.f;
+static bool gotGains=false;
 const int BUFFER_SIZE = 1024;
 const __u_long DEFAULT_CAPACITY=1;
 const int precission=6;
@@ -40,7 +41,7 @@ void handleParameters(int argc, char *argv[]){
 	    int opt;
 		bool error=false;
 		const char* errorCode=NULL;
-    while ((opt = getopt(argc, argv, "adn:")) != -1&&!error) {
+    while ((opt = getopt(argc, argv, "adn:g:")) != -1&&!error) {
         switch (opt) {
             case 'a':
                 if(gotStatsType){
@@ -70,21 +71,29 @@ void handleParameters(int argc, char *argv[]){
 				else
 				{
 					error=true;
-					errorCode="Invalid -n value\n";
+					errorCode="Invalid -n parameter\n";
 				}
+                break;
+			case 'g':
+				if(!optarg||sscanf(optarg, "%f %f", &preAmpGain, &ampGain) != 2)
+				{
+					error=true;
+					errorCode="Invalid -g parameters";
+				}
+				gotGains=true;
                 break;
             default:
 				error=true;
         }
     }
-	if(!gotStatsType||n<=0&&!error)
+	if(!gotStatsType||!gotGains||n<=0&&!error)
 	{
 		error=true;
 		errorCode="Not all necessary flags and values were given";
 	}
 	if(error){
 		if(errorCode){fprintf(stderr,"%s\n",errorCode);}
-		fprintf(stderr,"Usage: %s [-a] [-d] [-n <number>]\n",argv[0]);
+		fprintf(stderr,"Usage: %s [-a] [-d] [-n <number>] [-g \"<Pre-Amplifier Gain> <Amplifier Gain>\"]\n",argv[0]);
 		exit(EXIT_FAILURE);
 	}
 }
@@ -368,20 +377,11 @@ void processInput(struct Buffer* buf,struct Output* out,double multiplier)
     }
 	processBuffer(buf,out,multiplier,true);
 }
-bool getGains()
-{
-	if(!fscanf(stdin,"%f",&preAmpGain))
-	{return false;}
-	if(!fscanf(stdin,"%f",&ampGain)){
-		return false;}
-	return true;
-}
 double calculateMultiplier()
 {
-	if(!getGains())
+	if(preAmpGain<0||ampGain<0)
 	{
-		fprintf(stderr,"Bad input, couldn't get Pre-Amplifier Gain or Amplifier Gain");
-		exit(EXIT_FAILURE);
+		return 1.0;
 	}
 	return (2.048/(2<<15))*pow(10,(-1)*((preAmpGain+ampGain)/20.f));
 }
@@ -392,7 +392,6 @@ int main(int argc, char *argv[]) {
 	struct Buffer* buffer= createBuffer(DEFAULT_CAPACITY);
 	struct Output* out = createOutput(DEFAULT_CAPACITY);
 	double multiplier=calculateMultiplier();
-	//printf("%f\n",multiplier);
 	processInput(buffer,out,multiplier);
     return 0; // Return 0 to indicate successful execution
 }

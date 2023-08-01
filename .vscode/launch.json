@@ -32,7 +32,7 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${fileDirname}/${fileBasenameNoExtension}",
-            "args": ["-d","-n 1000"],
+            "args": ["-d","-n 1000","-g 42 30"],
             "stopAtEntry": false,
             "cwd": "${fileDirname}",
             "environment": [],
