@@ -345,7 +345,6 @@ void processInput(struct Buffer* buf,struct Output* out,double multiplier)
 		fprintf(stderr,"Bad alloc, immposible to store necesarry resources");
 		exit(EXIT_FAILURE);
 	}
-    // Читаем данные из стандартного ввода (stdin) в буфер
     __uint32_t elementsRead;
     while ((elementsRead = fread(input_buffer, sizeof(__uint32_t), BUFFER_SIZE, stdin)) > 0) 
 	{
@@ -384,7 +383,7 @@ double calculateMultiplier()
 		fprintf(stderr,"Bad input, couldn't get Pre-Amplifier Gain or Amplifier Gain");
 		exit(EXIT_FAILURE);
 	}
-	return (2.048/(2<<15))*pow(10,(-1)*((preAmpGain-ampGain)/20.f));
+	return (2.048/(2<<15))*pow(10,(-1)*((preAmpGain+ampGain)/20.f));
 }
 
 int main(int argc, char *argv[]) {
