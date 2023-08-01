@@ -264,7 +264,7 @@ double calculateDispersion(__uint32_t* arr,__u_long startPos,__u_long range,doub
 	}
 	return sum/range;
 }	
-unsigned processBuffer(struct Buffer* buf,struct Output* out,double multiplier,bool isFinished)
+unsigned processBuffer(struct Buffer* buf,struct Output* out,bool isFinished)
 {
  	int rest=buf->size%n;
 	__u_long i,j;
@@ -275,11 +275,11 @@ unsigned processBuffer(struct Buffer* buf,struct Output* out,double multiplier,b
 		
 		if(givenStatsType==Average)
 		{
-		 	recordValue=calculateAverage(buf->arr,i*n,n)*multiplier;
+		 	recordValue=calculateAverage(buf->arr,i*n,n);
 		}
 		else if(givenStatsType==Dispersional)
 		{
-			recordValue=calculateDispersion(buf->arr,i*n,n,calculateAverage(buf->arr,i*n,n))*pow(multiplier,2);
+			recordValue=calculateDispersion(buf->arr,i*n,n,calculateAverage(buf->arr,i*n,n));
 		}
 		else
 		{
@@ -302,11 +302,11 @@ unsigned processBuffer(struct Buffer* buf,struct Output* out,double multiplier,b
 	{   
 		if(givenStatsType==Average)
 		{
-		 	recordValue=calculateAverage(buf->arr,buf->size-rest,rest)*multiplier;
+		 	recordValue=calculateAverage(buf->arr,buf->size-rest,rest);
 		}
 		else if(givenStatsType==Dispersional)
 		{
-			recordValue=calculateDispersion(buf->arr,buf->size-rest,rest,calculateAverage(buf->arr,buf->size-rest,rest))*pow(multiplier,2);
+			recordValue=calculateDispersion(buf->arr,buf->size-rest,rest,calculateAverage(buf->arr,buf->size-rest,rest));
 		}
 		else
 		{
@@ -335,7 +335,7 @@ unsigned processBuffer(struct Buffer* buf,struct Output* out,double multiplier,b
 	return rest;
 }
 
-void processInput(struct Buffer* buf,struct Output* out,double multiplier)
+void processInput(struct Buffer* buf,struct Output* out)
 {
     __uint32_t* input_buffer;
 	 FILE* inputFile = fopen("data.dat", "r");
@@ -355,7 +355,7 @@ void processInput(struct Buffer* buf,struct Output* out,double multiplier)
 			{
 				if(!addElementToBuffer(buf,input_buffer[i]))
 				{
-					buf->size=processBuffer(buf,out,multiplier,false);
+					buf->size=processBuffer(buf,out,false);
 					if(!addElementToBuffer(buf,input_buffer[i]))
 					{
 						fprintf(stderr,"Bad alloc, immposible to store necesarry resources");
@@ -366,24 +366,7 @@ void processInput(struct Buffer* buf,struct Output* out,double multiplier)
 		}
 
     }
-	processBuffer(buf,out,multiplier,true);
-}
-bool getGains()
-{
-	if(!fscanf(stdin,"%f",&preAmpGain))
-	{return false;}
-	if(!fscanf(stdin,"%f",&ampGain)){
-		return false;}
-	return true;
-}
-double calculateMultiplier()
-{
-	if(!getGains())
-	{
-		fprintf(stderr,"Bad input, couldn't get Pre-Amplifier Gain or Amplifier Gain");
-		exit(EXIT_FAILURE);
-	}
-	return (2.048/(2<<15))*pow(10,(-1)*((preAmpGain+ampGain)/20.f));
+	processBuffer(buf,out,true);
 }
 
 int main(int argc, char *argv[]) {
@@ -391,8 +374,6 @@ int main(int argc, char *argv[]) {
 	handleParameters(argc,argv);
 	struct Buffer* buffer= createBuffer(DEFAULT_CAPACITY);
 	struct Output* out = createOutput(DEFAULT_CAPACITY);
-	double multiplier=calculateMultiplier();
-	//printf("%f\n",multiplier);
-	processInput(buffer,out,multiplier);
+	processInput(buffer,out);
     return 0; // Return 0 to indicate successful execution
 }
