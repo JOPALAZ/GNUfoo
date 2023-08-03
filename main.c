@@ -259,7 +259,7 @@ static inline double calculateDispersion(__uint32_t* arr,__u_long startPos,__u_l
 	}
 	return sum/range;
 }	
-unsigned processBuffer(struct Buffer* buf,struct Output* out,bool isFinished)
+void processBuffer(struct Buffer* buf,struct Output* out,bool isFinished)
 {
  	int rest=buf->size%n;
 	__u_long i,j;
@@ -293,6 +293,12 @@ unsigned processBuffer(struct Buffer* buf,struct Output* out,bool isFinished)
 		}
 
 	}
+	for(int i=0;i<rest;++i)
+	{
+		buf->arr[i]=buf->arr[buf->size-rest+i];
+	}
+	buf->size=rest;
+	
 	if(isFinished)
 	{   
 		if(givenStatsType==Average)
@@ -327,31 +333,30 @@ unsigned processBuffer(struct Buffer* buf,struct Output* out,bool isFinished)
 		free(out->string);
 		free(out);
 	}
-	return rest;
 }
 
 void processInput(struct Buffer* buf,struct Output* out)
 {
-    __uint32_t* input_buffer;
+    __uint32_t* inputBuffer;
 	 FILE* inputFile = fopen("data.dat", "r");
-	input_buffer=malloc(sizeof(__uint32_t)*BUFFER_SIZE);
-	if(!input_buffer)
+	inputBuffer=malloc(sizeof(__uint32_t)*BUFFER_SIZE);
+	if(!inputBuffer)
 	{
 		fprintf(stderr,"Bad alloc, immposible to store necesarry resources");
 		exit(EXIT_FAILURE);
 	}
     __uint32_t elementsRead;
-    while ((elementsRead = fread(input_buffer, sizeof(__uint32_t), BUFFER_SIZE, stdin)) > 0) 
+    while ((elementsRead = fread(inputBuffer, sizeof(__uint32_t), BUFFER_SIZE, inputFile)) > 0) 
 	{
-		if(!mergeBuffers(buf,input_buffer,elementsRead*sizeof(__uint32_t)))
+		if(!mergeBuffers(buf,inputBuffer,elementsRead*sizeof(__uint32_t)))
 		{
 
 			for(int i=0;i<elementsRead;++i)
 			{
-				if(!addElementToBuffer(buf,input_buffer[i]))
+				if(!addElementToBuffer(buf,inputBuffer[i]))
 				{
-					buf->size=processBuffer(buf,out,false);
-					if(!addElementToBuffer(buf,input_buffer[i]))
+					processBuffer(buf,out,false);
+					if(!addElementToBuffer(buf,inputBuffer[i]))
 					{
 						fprintf(stderr,"Bad alloc, immposible to store necesarry resources");
 						exit(EXIT_FAILURE);
@@ -375,5 +380,6 @@ int main(int argc, char *argv[]) {
 		exit(EXIT_FAILURE);
 	}
 	processInput(buffer,out);
+
     return 0; // Return 0 to indicate successful execution
 }
