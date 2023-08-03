@@ -25,7 +25,7 @@ static float ampGain=0.f;
 const int BUFFER_SIZE = 1024;
 const __u_long DEFAULT_CAPACITY=1;
 const int precission=6;
-unsigned char getLengthBeforeDot(double in)
+static inline unsigned char getLengthBeforeDot(double in)
 {
 	unsigned char counter=0;
 	__int32_t num=(__int32_t)(in);
@@ -36,7 +36,7 @@ unsigned char getLengthBeforeDot(double in)
 	}
 	return counter;
 }
-void handleParameters(int argc, char *argv[]){
+static inline void handleParameters(int argc, char *argv[]){
 	    int opt;
 		bool error=false;
 		const char* errorCode=NULL;
@@ -88,7 +88,7 @@ void handleParameters(int argc, char *argv[]){
 		exit(EXIT_FAILURE);
 	}
 }
-struct Buffer* createBuffer(__u_long capacity)
+static inline struct Buffer* createBuffer(__u_long capacity)
 {
 	struct Buffer* buf=malloc(sizeof(struct Buffer));
 	if(buf)
@@ -125,7 +125,7 @@ bool addElementToBuffer(struct Buffer* buf,__uint32_t val)
 	buf->size++;
 	return true;
 }
-bool mergeBuffers(struct Buffer* buf,__uint32_t* vals,__uint32_t bytesRead)
+ bool mergeBuffers(struct Buffer* buf,__uint32_t* vals,__uint32_t bytesRead)
 {
 	if(buf->capcity*sizeof(__uint32_t)<buf->size*sizeof(__uint32_t)+bytesRead)
 	{
@@ -150,7 +150,7 @@ bool mergeBuffers(struct Buffer* buf,__uint32_t* vals,__uint32_t bytesRead)
 	return true;
 
 }
-struct Output* createOutput(__u_long capacity)
+static inline struct Output* createOutput(__u_long capacity)
 {
 	struct Output* out=malloc(sizeof(struct Output));
 	if(out)
@@ -165,8 +165,8 @@ struct Output* createOutput(__u_long capacity)
 	}
 	return NULL;
 	
-}
-bool addCharToOutput(struct Output* out,char ch)
+} 
+ bool addCharToOutput(struct Output* out,char ch)
 {
 	if(out->size+1>=out->capcity)
 	{
@@ -218,13 +218,8 @@ bool addStringToOutput(struct Output* out, char* arr, unsigned stringSize)
 	
 }
 
-bool addRecordOfDoubleToOutput(struct Output* out,double val)
+ bool addRecordOfDoubleToOutput(struct Output* out,double val)
 {
-	static int hitCounter=0;
-	hitCounter++;
-	if(hitCounter>14768){
-		hitCounter=hitCounter;
-	}
 	unsigned bufsize=precission+getLengthBeforeDot(val)+2;
 	char* buf=malloc(sizeof(char)*bufsize*2);
 	gcvt(val,bufsize-2,buf);
@@ -243,7 +238,7 @@ bool addRecordOfDoubleToOutput(struct Output* out,double val)
 	}
 
 }
-double calculateAverage(__uint32_t* arr,__u_long startPos,__u_long range)
+static inline double calculateAverage(__uint32_t* arr,__u_long startPos,__u_long range)
 {
 	__int32_t sum=0;
 	for(__u_long i=0;i<range;++i)
@@ -253,7 +248,7 @@ double calculateAverage(__uint32_t* arr,__u_long startPos,__u_long range)
 	return (double)(sum)/range;
 }
 
-double calculateDispersion(__uint32_t* arr,__u_long startPos,__u_long range,double average)
+static inline double calculateDispersion(__uint32_t* arr,__u_long startPos,__u_long range,double average)
 {
 	double sum=0;
 	__int32_t xi;
@@ -374,6 +369,11 @@ int main(int argc, char *argv[]) {
 	handleParameters(argc,argv);
 	struct Buffer* buffer= createBuffer(DEFAULT_CAPACITY);
 	struct Output* out = createOutput(DEFAULT_CAPACITY);
+	if(!buffer||!out)
+	{
+		fprintf(stderr,"Bad alloc, immposible to store necesarry resources");
+		exit(EXIT_FAILURE);
+	}
 	processInput(buffer,out);
     return 0; // Return 0 to indicate successful execution
 }
