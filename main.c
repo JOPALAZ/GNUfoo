@@ -455,5 +455,5 @@ int main(int argc, char *argv[]) {
 	//processing input
 	processInput(buffer,out);
 
-    return 1; // Return 0 to indicate successful execution
+    return 0; // Return 0 to indicate successful execution
 }
