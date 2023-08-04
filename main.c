@@ -312,29 +312,29 @@ static inline double calculateAverage(__uint32_t* arr,__u_long startPos,__u_long
 	__int32_t sum=0;
 	for(__u_long i=0;i<range;++i)
 	{
-		sum+=((__int32_t)(arr[i+startPos]<<15))>>15; // for each 32 bits from arr in range from startPos lower 17 bits gets represented as signed integer and get added to sum
+		sum+=((__int32_t)(arr[i+startPos]<<15))>>15; // for each 32 bits from arr in range from startPos lower 17 bit gets represented as signed integer and get added to sum
 	}
 	return (double)(sum)/range; // returning average value as double, its faster to convert sum to double here, instead of having it as double from start because amount of operations with decimal will drop to 1
 }
-/*TODO*/
+/*Function to calculate dispersion between value of representation lower 17 bits as signed int in range of range starting from startPos and average value*/
 static inline double calculateDispersion(__uint32_t* arr,__u_long startPos,__u_long range,double average)
 {
 	double sum=0;
 	__int32_t xi;
 	for(int i=0;i<range;++i)
 	{
-		xi=((__int32_t)(arr[i+startPos]<<15))>>15;
-		sum+=pow(xi-average,2);
+		xi=((__int32_t)(arr[i+startPos]<<15))>>15; // for each 32 bits from arr in range from startPos lower 17 bits get represented as signed integer and squared diffence between it and average gets added to sum
+		sum+=(xi-average)*(xi-average); // Its faster to do it that way istead of pow(xi-average,2) according to this topic https://stackoverflow.com/questions/2940367/what-is-more-efficient-using-pow-to-square-or-just-multiply-it-with-itself
 	}
 	return sum/range;
 }	
+
+/*Function used to process data from buf and add results to out*/
 void processBuffer(struct _Buffer* buf,struct _Output* out,bool isFinished)
 {
- 	int rest=buf->size%n;
-	__u_long i,j;
-	__u_long sum;
+ 	int rest=buf->size%n; // Amount of cells that cant be processed if the procession isn't final
 	double recordValue=0;
-	for(i=0;i<buf->size/n;++i)	
+	for(__u_long i=0;i<buf->size/n;++i)	//for each cluster of n elements we calculate either average or dispersional statistics according to chosen type 	
 	{
 		
 		if(givenStatsType==Average)
@@ -347,56 +347,59 @@ void processBuffer(struct _Buffer* buf,struct _Output* out,bool isFinished)
 		}
 		else
 		{
-			fprintf(stderr,"Bad memory integrity, tampering with an important variable was found or value has changed due to unknown reasons");
+			fprintf(stderr,"Bad memory integrity, tampering with an important variable was found or value has changed due to unknown reasons"); // If arguments were processed, givenStatsType has to be average or dispersional. And if givenStatsType had changed, static data segment isn't intact
 			exit(EXIT_FAILURE);
 		}
-		if(!addRecordOfDoubleToOutput(out,recordValue))
+		if(!addRecordOfDoubleToOutput(out,recordValue)) // if it's impossible to store new value in output buffer, all buffer gets sent to stdout and size sets to 0, so new values will overwrite old.
 		{
 			fprintf(stdout,"%s",out->string);
 			out->size=0;
-			out->string[out->size]='\0';
-			if(!addRecordOfDoubleToOutput(out,recordValue))
+			out->string[out->size]='\0'; 
+			if(!addRecordOfDoubleToOutput(out,recordValue)) // if it's impossible to add new value to empty output buffer, it gets directly sent to stdout, we don't need to throw error, because program can still work, but very much slower.
 			{
-				fprintf(stdout,"%.*f\n",PRECISSION,recordValue);
+				fprintf(stdout,"%.*f\n",PRECISSION,recordValue); // if it happens, out is empty.
 			}
 		}
 
 	}
-	for(int i=0;i<rest;++i)
+	for(__u_long i=0;i<rest;++i)
 	{
-		buf->arr[i]=buf->arr[buf->size-rest+i];
+		buf->arr[i]=buf->arr[buf->size-rest+i]; // we place unprocessed values to start so new values can be added to not processed
 	}
 	buf->size=rest;
 	
-	if(isFinished)
+	if(isFinished) //If unprocessed values exist, process them. in the end, output buffer gets sent, and memory gets freed. 
 	{   
-		if(givenStatsType==Average)
-		{
-		 	recordValue=calculateAverage(buf->arr,buf->size-rest,rest);
-		}
-		else if(givenStatsType==Dispersional)
-		{
-			recordValue=calculateDispersion(buf->arr,buf->size-rest,rest,calculateAverage(buf->arr,buf->size-rest,rest));
-		}
-		else
-		{
-			fprintf(stderr,"Bad memory integrity, tampering with an important variable was found or value has changed due to unknown reasons");
-			exit(EXIT_FAILURE);
-		}
-		if(!addRecordOfDoubleToOutput(out,recordValue))
-		{
-			fprintf(stdout,"%s",out->string);
-			out->size=0;
-			out->string[out->size]='\0';
+		if(rest){
+			if(givenStatsType==Average)
+			{
+				recordValue=calculateAverage(buf->arr,buf->size-rest,rest);
+			}
+			else if(givenStatsType==Dispersional)
+			{
+				recordValue=calculateDispersion(buf->arr,buf->size-rest,rest,calculateAverage(buf->arr,buf->size-rest,rest));
+			}
+			else
+			{
+				fprintf(stderr,"Bad memory integrity, tampering with an important variable was found or value has changed due to unknown reasons");
+				exit(EXIT_FAILURE);
+			}
 			if(!addRecordOfDoubleToOutput(out,recordValue))
 			{
-				fprintf(stdout,"%.*f\n",PRECISSION,recordValue);
+				fprintf(stdout,"%s",out->string);
+				out->size=0;
+				out->string[out->size]='\0';
+				if(!addRecordOfDoubleToOutput(out,recordValue))
+				{
+					fprintf(stdout,"%.*f\n",PRECISSION,recordValue);
+				}
 			}
 		}
 		if(out->size)
 		{
-			fprintf(stdout,"%s",out->string);
+			fprintf(stdout,"%s",out->string); // whole output buffer get sended to stdout
 		}
+		//memory gets freed
 		free(buf->arr);
 		free(buf);
 		free(out->string);
@@ -404,29 +407,30 @@ void processBuffer(struct _Buffer* buf,struct _Output* out,bool isFinished)
 	}
 }
 
+/*Function that reads stdin, processes it, and outputs results to stdout using buffers to make program faster*/
 void processInput(struct _Buffer* buf,struct _Output* out)
-{
+{ 
     __uint32_t* inputBuffer;
-	inputBuffer=malloc(sizeof(__uint32_t)*BUFFER_SIZE);
-	if(!inputBuffer)
+	inputBuffer=malloc(sizeof(__uint32_t)*BUFFER_SIZE); // we create buffer to store there input.
+	if(!inputBuffer) 
 	{
-		fprintf(stderr,"Bad alloc, immposible to store necesarry resources");
+		fprintf(stderr,"Bad alloc, immposible to store necesarry resources"); //if it's impossible to create buffer, throw error.
 		exit(EXIT_FAILURE);
 	}
     __uint32_t elementsRead;
-    while ((elementsRead = fread(inputBuffer, sizeof(__uint32_t), BUFFER_SIZE, stdin)) > 0) 
+    while ((elementsRead = fread(inputBuffer, sizeof(__uint32_t), BUFFER_SIZE, stdin)) > 0) // until it's possible to read 4byte integers from standart input, they get added to _Buffer.
 	{
-		if(!mergeBuffers(buf,inputBuffer,elementsRead*sizeof(__uint32_t)))
+		if(!mergeBuffers(buf,inputBuffer,elementsRead*sizeof(__uint32_t))) // if it's impossible to add whole input buffer to buf, it gets added by element
 		{
 
 			for(int i=0;i<elementsRead;++i)
 			{
-				if(!addElementToBuffer(buf,inputBuffer[i]))
+				if(!addElementToBuffer(buf,inputBuffer[i])) // if it's impossible to add an element, buffer gets processed and some of part of if gets freed
 				{
 					processBuffer(buf,out,false);
-					if(!addElementToBuffer(buf,inputBuffer[i]))
+					if(!addElementToBuffer(buf,inputBuffer[i]))//if it's impossible to add an element to processed buffer, doesn't make sense to proceed 
 					{
-						fprintf(stderr,"Bad alloc, immposible to store necesarry resources");
+						fprintf(stderr,"Bad alloc, imposible to store necesarry resources");
 						exit(EXIT_FAILURE);
 					}
 				}
@@ -434,21 +438,22 @@ void processInput(struct _Buffer* buf,struct _Output* out)
 		}
 
     }
-	free(inputBuffer);
-	processBuffer(buf,out,true);
+	free(inputBuffer); // freeing the inputBuffer.
+	processBuffer(buf,out,true); // and processing the buffer.
 }
 
 int main(int argc, char *argv[]) {
 
-	handleParameters(argc,argv);
-	struct _Buffer* buffer= createBuffer(DEFAULT_CAPACITY);
+	handleParameters(argc,argv); //handling parameters
+	struct _Buffer* buffer= createBuffer(DEFAULT_CAPACITY); //cunstructing buffers
 	struct _Output* out = createOutput(DEFAULT_CAPACITY);
-	if(!buffer||!out)
+	if(!buffer||!out) // if buffers weren't constructed, throw error
 	{
 		fprintf(stderr,"Bad alloc, immposible to store necesarry resources");
 		exit(EXIT_FAILURE);
 	}
+	//processing input
 	processInput(buffer,out);
 
-    return 0; // Return 0 to indicate successful execution
+    return 1; // Return 0 to indicate successful execution
 }
