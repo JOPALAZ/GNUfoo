@@ -2,9 +2,9 @@
 
 data_file=""
 settings_file=""
-output_file_default="output"
+output_file_default="output.png"
 output_set=0
-output_file="output"
+output_file="output.png"
 
 settings_keys=("# Referrence Time Stamp - UNIX:" "# Initial Time Stamp:" "# Sample Description:" "# Sampling Freq.:" "# Pre-Amplifier Gain:" "# Amplifier Gain:")
 settings_values=(0 0 0 0 0 0)
