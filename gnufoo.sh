@@ -33,7 +33,7 @@ while [[ $# -gt 0 ]]; do
       shift ;;
     -n*)
       n_value="${1#-n}"
-      if [ -z "$n_value"]; then
+      if [ -z "$n_value" ]; then
         shift
         if [ "$1" -eq "$1" ]; then
           n_value="$1"
@@ -147,6 +147,8 @@ gnuplot_instructions+="set terminal png enhanced notransparent nointerlace truec
 gnuplot_instructions+="set title \"$graph_title\"\n"
 gnuplot_instructions+="set xlabel \"$label_x\"\n"
 gnuplot_instructions+="set ylabel \"$label_y\"\n"
-gnuplot_instructions+="plot \"< ./gnufooc -d -n1000 < $data_file\" using (calc_time(\$0)):(signal_to_voltage(\$1)) with lines title \"$line_title\""
+gnuplot_instructions+="plot \"< ./gnufooc $statistic_type -n$n_value < $data_file\" using (calc_time(\$0)):(signal_to_voltage(\$1)) with lines title \"$line_title\""
 
+
+#echo -e "$gnuplot_instructions">debug
 echo -e "$gnuplot_instructions" | gnuplot
