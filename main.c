@@ -1,8 +1,5 @@
 
-/* Constants, DEFAULT_CAPACITY can be set to higher values to eliminate extra _Buffer and _Output realocations, so that will make program faster but will increase minimal memory usage.*/
-#define BUFFER_SIZE 1024
-#define DEFAULT_CAPACITY 1
-#define PRECISSION 6
+/*Constant known amount of useless upper bits in input values*/
 #define NOISESHIFT 15
 /*This include is needed in order to process the i/o*/
 #include <stdio.h>
@@ -30,9 +27,7 @@ static struct option _LongOptionList[] = {
 
 static bool gotStatsType = false;
 static enum StatsType givenStatsType = None;
-static int N = -1;
-// static float preAmpGain = 0.f;
-// static float ampGain = 0.f;
+static uint64_t N = 0;
 
 
 static inline void handleParameters(int argc, char* argv[]) {
@@ -102,31 +97,37 @@ static inline void processInput()
 	size_t i;
 	int32_t currentValue;
 	double average;
-	size_t bufferSizeVar=BUFFER_SIZE;
 	int64_t sum=0;
 	uint64_t counter=0;
 	uint64_t sum_squared=0;
 
 	while ((fread(&inputValue, sizeof(uint32_t), 1, stdin)) > 0) // until it's possible to read 4byte integers from standart input, they get added to _Buffer.
 	{
-			currentValue=cleanNoise(inputValue);
+			
+			currentValue=cleanNoise(inputValue); // useless noise upper NOISESHIFT bites get trimmed 
 			sum+=currentValue;
 			if(gotStatsType==Dispersional)
 			{
-				sum_squared+=currentValue*currentValue;
+				sum_squared+=currentValue*currentValue; // doesn't have to be calculated, unless statsType is despersinal
 			}
 			counter++;
 			if(counter == N)
 			{
-				average=(double)(sum)/N;
+				average=(double)(sum)/N; // need it in both variants so, it's better to calculate it here.
 				counter=0;
 				if(gotStatsType==Average)
 				{
-					printf("%f\n",average);
+					printf("%f\n",average); // outputing average
 				}
 				else if(givenStatsType==Dispersional)
 				{
-					printf("%f\n",((double)sum_squared/N-(average*average)));
+					printf("%f\n",((double)sum_squared/N-(average*average))); /*
+					Calculating 1/N \sum_{i=1}^{N} (x_i-average), but 1/N \sum_{i=1}^{N} (x_i-average)^2 == 1/N \sum_{i=1}^{N} (x_i^2-2*x_i*average+average^2)
+					
+					\sum_{i=1}^{N} (x_i) = N*average, so 1/N \sum_{i=1}^{N} (x_i^2-2*x_i*average+average^2) ==  1/N(\sum_{i=1}^{N}x_i^2-2N*average^2+average^2) ==
+					
+					\sum_{i=1}^{N}x_i^2 / N - average^2 
+					*/
 				}
 				else
 				{
@@ -140,7 +141,7 @@ static inline void processInput()
 }
 int main(int argc, char* argv[]) {
 	handleParameters(argc, argv); //handling parameters
-	processInput();
+	processInput(); //Processing input
 
 	return 0; // Return 0 to indicate successful execution
 }
