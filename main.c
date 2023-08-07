@@ -1,3 +1,8 @@
+
+/* Constants, DEFAULT_CAPACITY can be set to higher values to eliminate extra _Buffer and _Output realocations, so that will make program faster but will increase minimal memory usage.*/
+#define BUFFER_SIZE 1024
+#define DEFAULT_CAPACITY 1
+#define PRECISSION 6
 /*This include is needed in order to process the i/o*/
 #include <stdio.h>
 /* This is here now mainly to declare the NULL pointer */
@@ -48,11 +53,6 @@ static int n = -1;
 // static float preAmpGain = 0.f;
 // static float ampGain = 0.f;
 
-/* Constants, DEFAULT_CAPACITY can be set to higher values to eliminate extra _Buffer and _Output realocations, so that will make program faster but will increase minimal memory usage.*/
-
-const size_t BUFFER_SIZE = 1024;
-const size_t DEFAULT_CAPACITY = 1;
-const uint8_t PRECISSION = 6;
 
 static inline uint16_t getLengthBeforeDot(double in)
 /* 	may be unsafe because the double type can represent values higher than long, but it will never happen because the theoretical max input is (2*2^16)^2 == 2^34
