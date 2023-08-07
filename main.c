@@ -92,13 +92,13 @@ static inline void handleParameters(int argc, char* argv[]) {
 		exit(EXIT_FAILURE);
 	}
 }
-static inline int32_t cleanNoise(uint32_t val){
+static inline int32_t cleanNoise(uint32_t val)
+{
 	return ((int32_t)(val<<NOISESHIFT))>>NOISESHIFT;
 }
-void processInput()
+static inline void processInput()
 {
-	uint32_t* inputBuffer;
-	size_t elementsRead;
+	uint32_t inputValue;
 	size_t i;
 	int32_t currentValue;
 	double average;
@@ -107,24 +107,9 @@ void processInput()
 	uint64_t counter=0;
 	uint64_t sum_squared=0;
 
-	
-	
-	inputBuffer = (uint32_t*)malloc(sizeof(uint32_t) * bufferSizeVar); // we create buffer to store there input.
-	while (!inputBuffer)
+	while ((fread(&inputValue, sizeof(uint32_t), 1, stdin)) > 0) // until it's possible to read 4byte integers from standart input, they get added to _Buffer.
 	{
-		bufferSizeVar/=2;
-		inputBuffer = (uint32_t*)malloc(sizeof(uint32_t) * bufferSizeVar);
-		if(!bufferSizeVar)
-		{
-			fprintf(stderr, "Bad alloc, immposible to store necesarry resources"); //if it's impossible to create buffer, throw error.
-			exit(EXIT_FAILURE);
-		}
-	}
-	while ((elementsRead = fread(inputBuffer, sizeof(uint32_t), bufferSizeVar, stdin)) > 0) // until it's possible to read 4byte integers from standart input, they get added to _Buffer.
-	{
-		for(i=0;i<bufferSizeVar;++i)
-		{
-			currentValue=cleanNoise(inputBuffer[i]);
+			currentValue=cleanNoise(inputValue);
 			sum+=currentValue;
 			if(gotStatsType==Dispersional)
 			{
@@ -151,9 +136,7 @@ void processInput()
 				sum_squared=0;
 				sum=0;
 			}
-		}
 	}
-	free(inputBuffer); // freeing the inputBuffer.
 }
 int main(int argc, char* argv[]) {
 	handleParameters(argc, argv); //handling parameters
