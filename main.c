@@ -1,6 +1,7 @@
 
-/*Constant known amount of useless upper bits in input values*/
-#define NOISESHIFT 15
+/*Constans: known amount of useless upper bits in input values, input buffer size*/
+#define NOISE_SHIFT 15
+#define BUFFER_SIZE 32768
 /*This include is needed in order to process the i/o*/
 #include <stdio.h>
 /* This is here now mainly to declare the NULL pointer */
@@ -89,22 +90,39 @@ static inline void handleParameters(int argc, char* argv[]) {
 }
 static inline int32_t cleanNoise(uint32_t val)
 {
-	return ((int32_t)(val<<NOISESHIFT))>>NOISESHIFT;
+	return ((int32_t)(val<<NOISE_SHIFT))>>NOISE_SHIFT;
 }
 static inline void processInput()
 {
-	uint32_t inputValue;
+	uint32_t* inputValues;
 	size_t i;
+	size_t elementsRead;
 	int32_t currentValue;
+	size_t bufferSizeVar = BUFFER_SIZE;
 	double average;
 	int64_t sum=0;
 	uint64_t counter=0;
 	uint64_t sum_squared=0;
 
-	while ((fread(&inputValue, sizeof(uint32_t), 1, stdin)) > 0) // until it's possible to read 4byte integers from standart input, they get added to _Buffer.
+
+	inputValues = (uint32_t*)malloc(sizeof(uint32_t) * bufferSizeVar); // we create buffer to store there input.
+	while (!inputValues)
 	{
-			
-			currentValue=cleanNoise(inputValue); // useless noise upper NOISESHIFT bites get trimmed 
+		bufferSizeVar/=2;
+		inputValues = (uint32_t*)malloc(sizeof(uint32_t) * bufferSizeVar);
+		if(!bufferSizeVar)
+		{
+			fprintf(stderr, "Bad alloc, immposible to store necesarry resources"); //if it's impossible to create buffer, throw error.
+			exit(EXIT_FAILURE);
+		}
+	}
+
+
+	while ((elementsRead=fread(inputValues, sizeof(uint32_t), bufferSizeVar , stdin)) > 0) // until it's possible to read 4byte integers from standart input, they get added to _Buffer.
+	{
+		for(i=0;i<elementsRead;++i)
+		{
+			currentValue=cleanNoise(inputValues[i]); // useless noise upper NOISE_SHIFT bites get trimmed 
 			sum+=currentValue;
 			if(gotStatsType==Dispersional)
 			{
@@ -137,7 +155,9 @@ static inline void processInput()
 				sum_squared=0;
 				sum=0;
 			}
+		}
 	}
+	free(inputValues);
 }
 int main(int argc, char* argv[]) {
 	handleParameters(argc, argv); //handling parameters
