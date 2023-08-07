@@ -10,6 +10,8 @@
 #include <math.h>
 /*This include is needed to declare len() function*/
 #include <string.h>
+/*This include is needed to define 32 bit integer*/
+#include <stdint.h>
 enum StatsType { None = 0, Average = 1, Dispersional = 2 };
 
 
@@ -22,10 +24,10 @@ static struct option _LongOptionList[] = {
 	{ NULL,       			0, NULL, 0   },		/* This is a zeroed element, which terminates the list of argument specifications. */
 };
 
-/*This is a struct of array of unsigned's with capacity of capacity, and with amount of used cells of array in size, something like std::vector<unsigned> in c++ */
+/*This is a struct of array of uint32_t's with capacity of capacity, and with amount of used cells of array in size, something like std::vector<uint32_t> in c++ */
 struct _Buffer
 {
-	unsigned* arr;
+	uint32_t* arr;
 	size_t size;
 	size_t capcity;
 };
@@ -43,22 +45,22 @@ struct _Output
 static bool gotStatsType = false;
 static enum StatsType givenStatsType = None;
 static int n = -1;
-static float preAmpGain = 0.f;
-static float ampGain = 0.f;
+// static float preAmpGain = 0.f;
+// static float ampGain = 0.f;
 
 /* Constants, DEFAULT_CAPACITY can be set to higher values to eliminate extra _Buffer and _Output realocations, so that will make program faster but will increase minimal memory usage.*/
 
-const int BUFFER_SIZE = 1024;
-const unsigned long DEFAULT_CAPACITY = 1;
-const int PRECISSION = 6;
+const size_t BUFFER_SIZE = 1024;
+const size_t DEFAULT_CAPACITY = 1;
+const uint8_t PRECISSION = 6;
 
-static inline short getLengthBeforeDot(double in)
+static inline uint16_t getLengthBeforeDot(double in)
 /* 	may be unsafe because the double type can represent values higher than long, but it will never happen because the theoretical max input is (2*2^16)^2 == 2^34
 	where 2^16 is maximal integer number can be repesented by 17 bit signed int, 2* and ^2 stands for situation where used dispersion and average is -2^16 and x_i is 2^16
 	2^34 can be represented by long, so in current circumstances, it's safe and fast.*/
 {
-	short counter = 0;
-	long num = (long)(in);
+	uint16_t counter = 0;
+	int64_t num = (int64_t)(in);
 	while (num)
 	{
 		counter++;
@@ -142,14 +144,14 @@ static inline void handleParameters(int argc, char* argv[]) {
 
 /*Basicly constructor of _Buffer, returns pointer to empty _Buffer with *capacity* of allocated cells in array,if something went wrong, returns NULL.
  capacity has to be > 0*/
-static inline struct _Buffer* createBuffer(unsigned long capacity)
+static inline struct _Buffer* createBuffer(size_t capacity)
 {
 	struct _Buffer* buf = (struct _Buffer*)malloc(sizeof(struct _Buffer));
 	if (buf && capacity)
 	{
 		buf->capcity = capacity;
 		buf->size = 0;
-		buf->arr = (unsigned*)malloc(capacity * sizeof(unsigned));
+		buf->arr = (uint32_t*)malloc(capacity * sizeof(uint32_t));
 		if (buf->arr)
 		{
 			return buf; /* If the array with given capacity was allocated we return pointer to prepaired _Buffer*/
@@ -159,12 +161,12 @@ static inline struct _Buffer* createBuffer(unsigned long capacity)
 }
 
 /*Function used to add val to buf*/
-bool addElementToBuffer(struct _Buffer* buf, unsigned val)
+bool addElementToBuffer(struct _Buffer* buf, uint32_t val)
 {
 
 	if (buf->size >= buf->capcity)
 	{
-		unsigned* safetyBuf = (unsigned*)realloc(buf->arr, (buf->capcity << 1) * sizeof(unsigned));  // if the amount of used cells == capacity array gets safely realocated, if it can't be realoacated we won't lose any data.
+		uint32_t* safetyBuf = (uint32_t*)realloc(buf->arr, (buf->capcity << 1) * sizeof(uint32_t));  // if the amount of used cells == capacity array gets safely realocated, if it can't be realoacated we won't lose any data.
 		if (safetyBuf)
 		{
 			buf->arr = safetyBuf;
@@ -183,20 +185,20 @@ bool addElementToBuffer(struct _Buffer* buf, unsigned val)
 }
 
 /*This function used to add *bytesRead* bytes of array of vals to to the end of buf the fastest way*/
-bool mergeBuffers(struct _Buffer* buf, unsigned* vals, size_t bytesRead)
+bool mergeBuffers(struct _Buffer* buf, uint32_t* vals, size_t bytesRead)
 {
-	if (buf->capcity * sizeof(unsigned) < buf->size * sizeof(unsigned) + bytesRead) // If current amount of unused allocated bytes in array less than amount of bytes to be added, it gets doubled
+	if (buf->capcity * sizeof(uint32_t) < buf->size * sizeof(uint32_t) + bytesRead) // If current amount of unused allocated bytes in array less than amount of bytes to be added, it gets doubled
 	{
-		unsigned long newByteCapacity = (buf->capcity << 1) * sizeof(unsigned);
-		if (newByteCapacity < buf->size * sizeof(unsigned) + bytesRead) // If itsn't enough, capacity gets froced to just fit all new bytes
+		size_t newByteCapacity = (buf->capcity << 1) * sizeof(uint32_t);
+		if (newByteCapacity < buf->size * sizeof(uint32_t) + bytesRead) // If itsn't enough, capacity gets froced to just fit all new bytes
 		{
-			newByteCapacity = buf->size * sizeof(unsigned) + bytesRead;
+			newByteCapacity = buf->size * sizeof(uint32_t) + bytesRead;
 		}
-		unsigned* safetyBuf = (unsigned*)realloc(buf->arr, newByteCapacity); // Safe reallocation array of buf to fit bytesRead of new data, and if it succeeded we set capacity to newByteCapacity/sizeof(unsigned)
+		uint32_t* safetyBuf = (uint32_t*)realloc(buf->arr, newByteCapacity); // Safe reallocation array of buf to fit bytesRead of new data, and if it succeeded we set capacity to newByteCapacity/sizeof(uint32_t)
 		if (safetyBuf)
 		{
 			buf->arr = safetyBuf;
-			buf->capcity = newByteCapacity / sizeof(unsigned);
+			buf->capcity = newByteCapacity / sizeof(uint32_t);
 		}
 		else
 		{
@@ -204,7 +206,7 @@ bool mergeBuffers(struct _Buffer* buf, unsigned* vals, size_t bytesRead)
 		}
 	}
 	memcpy(buf->arr + buf->size, vals, bytesRead); // bytesRead from vals get added to end of buf array
-	buf->size += bytesRead / sizeof(unsigned); // adding right amount of added elements to size
+	buf->size += bytesRead / sizeof(uint32_t); // adding right amount of added elements to size
 	return true;
 
 }
@@ -212,7 +214,7 @@ bool mergeBuffers(struct _Buffer* buf, unsigned* vals, size_t bytesRead)
 
 /*Basicly constructor of _Output, returns pointer to empty _Output with *capacity* of allocated cells in array,if something went wrong, returns NULL.
  capacity has to be > 0*/
-static inline struct _Output* createOutput(unsigned long capacity)
+static inline struct _Output* createOutput(size_t capacity)
 {
 	struct _Output* out = (struct _Output*)malloc(sizeof(struct _Output));
 	if (out && capacity)
@@ -285,7 +287,7 @@ bool addStringToOutput(struct _Output* out, char* arr, size_t stringSize)
 /*Adds decimal number to new line in out*/
 bool addRecordOfDoubleToOutput(struct _Output* out, double val)
 {
-	unsigned bufsize = PRECISSION + getLengthBeforeDot(val) + 2; // probable amount of numbers after decimal point + amount of numbers before decimal point + 1 (for '.') + 1 (for '\0') as amount of char in string to be add to output
+	uint32_t bufsize = PRECISSION + getLengthBeforeDot(val) + 2; // probable amount of numbers after decimal point + amount of numbers before decimal point + 1 (for '.') + 1 (for '\0') as amount of char in string to be add to output
 	char* buf = (char*)malloc(sizeof(char) * bufsize * 2); // allocate string with bufsize*2 cells, *2 for extremal state where precission is too low so the number has to be represented in scientific way and "e+" or "e-" has to be added, wastes couple of bytes but ensures safety
 	if (buf)
 	{
@@ -307,23 +309,23 @@ bool addRecordOfDoubleToOutput(struct _Output* out, double val)
 }
 
 /*Function to calculate average value of representation lower 17 bits as signed int in range of range starting from startPos*/
-static inline double calculateAverage(unsigned* arr, unsigned long startPos, unsigned long range)
+static inline double calculateAverage(uint32_t* arr, size_t startPos, size_t range)
 {
-	int sum = 0;
-	for (unsigned long i = 0; i < range; ++i)
+	int64_t sum = 0;
+	for (size_t i = 0; i < range; ++i)
 	{
-		sum += ((int)(arr[i + startPos] << 15)) >> 15; // for each 32 bits from arr in range from startPos lower 17 bit gets represented as signed integer and get added to sum
+		sum += ((int32_t)(arr[i + startPos] << 15)) >> 15; // for each 32 bits from arr in range from startPos lower 17 bit gets represented as signed integer and get added to sum
 	}
 	return (double)(sum) / range; // returning average value as double, its faster to convert sum to double here, instead of having it as double from start because amount of operations with decimal will drop to 1
 }
 /*Function to calculate dispersion between value of representation lower 17 bits as signed int in range of range starting from startPos and average value*/
-static inline double calculateDispersion(unsigned* arr, unsigned long startPos, unsigned long range, double average)
+static inline double calculateDispersion(uint32_t* arr, size_t startPos, size_t range, double average)
 {
 	double sum = 0;
 	int xi;
-	for (unsigned long i = 0; i < range; ++i)
+	for (size_t i = 0; i < range; ++i)
 	{
-		xi = ((int)(arr[i + startPos] << 15)) >> 15; // for each 32 bits from arr in range from startPos lower 17 bits get represented as signed integer and squared diffence between it and average gets added to sum
+		xi = ((int32_t)(arr[i + startPos] << 15)) >> 15; // for each 32 bits from arr in range from startPos lower 17 bits get represented as signed integer and squared diffence between it and average gets added to sum
 		sum += (xi - average) * (xi - average); // Its faster to do it that way istead of pow(xi-average,2) according to this topic https://stackoverflow.com/questions/2940367/what-is-more-efficient-using-pow-to-square-or-just-multiply-it-with-itself
 	}
 	return sum / range;
@@ -332,9 +334,9 @@ static inline double calculateDispersion(unsigned* arr, unsigned long startPos, 
 /*Function used to process data from buf and add results to out*/
 void processBuffer(struct _Buffer* buf, struct _Output* out, bool isFinished)
 {
-	unsigned rest = buf->size % n; // Amount of cells that cant be processed if the procession isn't final
+	uint32_t rest = buf->size % n; // Amount of cells that cant be processed if the procession isn't final
 	double recordValue = 0;
-	for (unsigned long i = 0; i < buf->size / n; ++i)	//for each cluster of n elements we calculate either average or dispersional statistics according to chosen type
+	for (size_t i = 0; i < buf->size / n; ++i)	//for each cluster of n elements we calculate either average or dispersional statistics according to chosen type
 	{
 
 		if (givenStatsType == Average)
@@ -362,7 +364,7 @@ void processBuffer(struct _Buffer* buf, struct _Output* out, bool isFinished)
 		}
 
 	}
-	for (unsigned long i = 0; i < rest; ++i)
+	for (size_t i = 0; i < rest; ++i)
 	{
 		buf->arr[i] = buf->arr[buf->size - rest + i]; // we place unprocessed values to start so new values can be added to not processed
 	}
@@ -410,20 +412,20 @@ void processBuffer(struct _Buffer* buf, struct _Output* out, bool isFinished)
 /*Function that reads stdin, processes it, and outputs results to stdout using buffers to make program faster*/
 void processInput(struct _Buffer* buf, struct _Output* out)
 {
-	unsigned* inputBuffer;
-	inputBuffer = (unsigned*)malloc(sizeof(unsigned) * BUFFER_SIZE); // we create buffer to store there input.
+	uint32_t* inputBuffer;
+	inputBuffer = (uint32_t*)malloc(sizeof(uint32_t) * BUFFER_SIZE); // we create buffer to store there input.
 	if (!inputBuffer)
 	{
 		fprintf(stderr, "Bad alloc, immposible to store necesarry resources"); //if it's impossible to create buffer, throw error.
 		exit(EXIT_FAILURE);
 	}
 	size_t elementsRead;
-	while ((elementsRead = fread(inputBuffer, sizeof(unsigned), BUFFER_SIZE, stdin)) > 0) // until it's possible to read 4byte integers from standart input, they get added to _Buffer.
+	while ((elementsRead = fread(inputBuffer, sizeof(uint32_t), BUFFER_SIZE, stdin)) > 0) // until it's possible to read 4byte integers from standart input, they get added to _Buffer.
 	{
-		if (!mergeBuffers(buf, inputBuffer, elementsRead * sizeof(unsigned))) // if it's impossible to add whole input buffer to buf, it gets added by element
+		if (!mergeBuffers(buf, inputBuffer, elementsRead * sizeof(uint32_t))) // if it's impossible to add whole input buffer to buf, it gets added by element
 		{
 
-			for (unsigned i = 0; i < elementsRead; ++i)
+			for (uint32_t i = 0; i < elementsRead; ++i)
 			{
 				if (!addElementToBuffer(buf, inputBuffer[i])) // if it's impossible to add an element, buffer gets processed and some of part of if gets freed
 				{

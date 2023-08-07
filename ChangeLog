@@ -1,0 +1,2 @@
+Fixed types, small memory leak fix | 1.0->1.1
+Small type fixes, ensured that unsigned int will always be 32bit | 1.1->1.2
