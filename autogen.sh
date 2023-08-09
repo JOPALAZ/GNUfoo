@@ -3,4 +3,3 @@ autoconf
 automake --add-missing
 ./configure
 make
-make check
