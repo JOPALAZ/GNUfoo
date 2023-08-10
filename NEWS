@@ -1,1 +1,2 @@
-Now the code can be compiled under windows despite it doesn't make any sense.
+1.2 Now the code can be compiled under windows despite it doesn't make any sense.
+2.0 Now code is 2x faster, on Core I5 11300h ~40ms to process data.dat with -d -n1000, previous result was ~90ms
