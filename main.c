@@ -135,7 +135,7 @@ static inline void processInput()
 	{
 		for(i=0;i<elementsRead;++i)
 		{
-			currentValue=cleanNoise(inputValues[i]); // useless noise upper NOISE_SHIFT bites getting trimmed 
+			currentValue=cleanNoise(inputValues[i]); // useless noise upper NOISE_SHIFT bits getting trimmed 
 			sum+=currentValue;
 			if(givenStatsType==Dispersional)
 			{
