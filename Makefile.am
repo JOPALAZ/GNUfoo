@@ -1,7 +1,7 @@
 
 bin_PROGRAMS = gnufooc
 gnufooc_SOURCES = main.c
-bin_SCRIPTS = gnufoo
+bin_SCRIPTS = gnufoo.sh
 clean-local:
 	@rm config.status configure config.log
 	@rm Makefile

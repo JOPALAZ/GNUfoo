@@ -6,7 +6,8 @@ output_file_default="output.png"
 output_set=0
 output_file="output.png"
 
-settings_keys=("# Referrence Time Stamp - UNIX:" "# Initial Time Stamp:" "# Sample Description:" "# Sampling Freq.:" "# Pre-Amplifier Gain:" "# Amplifier Gain:")
+settings_keys=("ReferrenceTimeStamp-UNIX" "InitialTimeStamp" "SampleDescription" "SamplingFreq." "Pre-AmplifierGain" "AmplifierGain")
+settings_types=("1'st number" "1'st number" "1'st string" "1'st number" "1'st number" "1'st number")
 settings_values=(0 0 0 0 0 0)
 got_values=(0 0 0 0 0 0)
 gnuplot_instructions=""
@@ -87,23 +88,27 @@ if [ ! -f "$settings_file" ]; then
 fi
 
 while IFS= read -r line; do
+if [ "${line:0:1}" = "#" ] && [[ $line == *":"* ]]; then
+  key=$( echo "$line" | grep -o '#[^:]*' | sed -n "1p" |  tr -d ' ' | tr -d '#')  
   for index in ${!settings_keys[*]}; do
-    if [[ "$line" == *${settings_keys[index]}* ]]; then
-      if [[ "$line" == *"Description"* ]] || [[ "$line" == *"description"* ]]; then
-        settings_values[index]=$(echo "$line" | awk -F ": " '{print $2}')
-        if [ ! -z "${settings_values[index]}" ]; then
-          got_values[index]=1
-        fi
+    if [[ "$key" == ${settings_keys[index]} ]]; then
+      prefix=$( echo "$line" | grep -o '#[^:]*:' | sed -n "1p" )
+      value=${line#${prefix}}
+      value_number="${settings_types[index]%%"'"*}"
+      if [[ ${settings_types[index]} == *"number" ]]; then
+        settings_values[index]=$(echo "$value" | grep -Eo '[0-9]+(\.[0-9]+)?' | sed -n $value_number'p')
+        got_values[index]=1
+      elif [[ ${settings_types[index]} == *"string" ]]; then
+       settings_values[index]=$(echo "$value" | sed 's/,/\n/g'| grep . | sed -n $value_number'p')
+       got_values[index]=1
       else
-        settings_values[index]=$(echo "$line" | awk -F ": " '{print $2}' | awk '{print $1}')
-        if [ ! -z "${settings_values[index]}" ]; then
-          got_values[index]=1
-        fi
+        echo "Error: Unknown type"
+        exit 1
       fi
     fi
   done
+fi
 done < "$settings_file"
-
 
 
 
