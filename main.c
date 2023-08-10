@@ -2,7 +2,7 @@
 /*Constans: known amount of useless upper bits in input values, input buffer size*/
 #define PROCESS_TAIL 1
 #define NOISE_SHIFT 15
-#define BUFFER_SIZE 32768
+#define BUFFER_SIZE 8192
 #define SOFTWARE_VERSION "2.0"
 #define PRECISSION 4
 /*This include is needed in order to process the i/o*/
