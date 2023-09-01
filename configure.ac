@@ -1,4 +1,4 @@
-AC_INIT([gnufooc], [2.0], [boretboh@fjfi.cvut.cz])
+AC_INIT([gnufooc], [2.1], [boretboh@fjfi.cvut.cz])
 
 AM_INIT_AUTOMAKE
 

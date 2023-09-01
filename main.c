@@ -3,8 +3,8 @@
 #define PROCESS_TAIL 1
 #define NOISE_SHIFT 15
 #define BUFFER_SIZE 8192
-#define SOFTWARE_VERSION "2.0"
-#define PRECISSION 4
+#define SOFTWARE_VERSION "2.1"
+#define PRECISSION 15
 /*This include is needed in order to process the i/o*/
 #include <stdio.h>
 /* This is here now mainly to declare the NULL pointer */
@@ -119,18 +119,11 @@ static inline void processInput()
 	
 
 	inputValues = (uint32_t*)malloc(sizeof(uint32_t) * bufferSizeVar); // we create buffer to store there input.
-	while (!inputValues)
+	if(!bufferSizeVar)
 	{
-		bufferSizeVar/=2;
-		inputValues = (uint32_t*)malloc(sizeof(uint32_t) * bufferSizeVar);
-		if(!bufferSizeVar)
-		{
-			fprintf(stderr, "Bad alloc, immposible to store necesarry resources"); //if it's impossible to create buffer, throw error.
-			exit(EXIT_FAILURE);
-		}
+		fprintf(stderr, "Bad alloc, immposible to store necesarry resources"); //if it's impossible to create buffer, throw error.
+		exit(EXIT_FAILURE);
 	}
-
-
 	while ((elementsRead=fread(inputValues, sizeof(uint32_t), bufferSizeVar , stdin)) > 0) // until it's possible to read 4byte integers from standart input, they get processed.
 	{
 		for(i=0;i<elementsRead;++i)
@@ -148,12 +141,12 @@ static inline void processInput()
 				counter=0;
 				if(givenStatsType==Average)
 				{
-					printf("%.*f\n",PRECISSION,average); // outputing average
+					printf("%.*g\n",PRECISSION,average); // outputing average
 				}
 				else if(givenStatsType==Dispersional)
 				{
 					dispersion=(sum_squared/N-average*average);
-					printf("%.*f\n",PRECISSION,dispersion);
+					printf("%.*g\n",PRECISSION,dispersion);
 					 /*
 					Calculating 1/N \sum_{i=1}^{N} (x_i-average), but 1/N \sum_{i=1}^{N} (x_i-average)^2 == 1/N \sum_{i=1}^{N} (x_i^2-2*x_i*average+average^2)
 					
@@ -180,12 +173,12 @@ static inline void processInput()
 	average=(double)(sum)/tail; // need it in both variants so it's better to calculate it here.
 	if(givenStatsType==Average)
 	{
-		printf("%.*f\n",PRECISSION,average); // outputing average
+		printf("%.*g\n",PRECISSION,average); // outputing average
 	}
 	else if(givenStatsType==Dispersional)
 	{
 		dispersion=(sum_squared/tail-average*average);
-		printf("%.*f\n",PRECISSION,dispersion);
+		printf("%.*g\n",PRECISSION,dispersion);
 			/*
 		Calculating 1/N \sum_{i=1}^{N} (x_i-average), but 1/N \sum_{i=1}^{N} (x_i-average)^2 == 1/N \sum_{i=1}^{N} (x_i^2-2*x_i*average+average^2)
 		
