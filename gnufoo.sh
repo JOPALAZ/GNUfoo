@@ -6,14 +6,21 @@ output_file_default="output.png"
 output_set=0
 output_file="output.png"
 
-settings_keys=("ReferrenceTimeStamp-UNIX" "InitialTimeStamp" "SampleDescription" "SamplingFreq." "Pre-AmplifierGain" "AmplifierGain")
-settings_types=("1'st number" "1'st number" "1'st string" "1'st number" "1'st number" "1'st number")
+settings_keys=("Referrence Time Stamp - UNIX" "Initial Time Stamp" "Sample Description" "Sampling Freq." "Pre-Amplifier Gain" "Amplifier Gain")
+settings_types=("0'st us" "0'st samples" "0'st" "0'st Hz" "0'st dB" "0'st dB")
 settings_values=(0 0 0 0 0 0)
 got_values=(0 0 0 0 0 0)
-gnuplot_instructions=""
 statistic_type=""
 n_value=0
- 
+
+
+trim() {
+    local str="$*"
+    str=$(echo $str |sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+    echo "$str"
+}
+
+
 while [[ $# -gt 0 ]]; do
   case "$1" in
     -d)
@@ -88,26 +95,18 @@ if [ ! -f "$settings_file" ]; then
 fi
 
 while IFS= read -r line; do
-if [ "${line:0:1}" = "#" ] && [[ $line == *":"* ]]; then
-  key=$( echo "$line" | grep -o '#[^:]*' | sed -n "1p" |  tr -d ' ' | tr -d '#')  
+  key=$( echo "${line%%":"*}:" | sed 's/^#\(.*\):.*/\1/' )
+  key=$(trim $key)
   for index in ${!settings_keys[*]}; do
     if [[ "$key" == ${settings_keys[index]} ]]; then
-      prefix=$( echo "$line" | grep -o '#[^:]*:' | sed -n "1p" )
-      value=${line#${prefix}}
-      value_number="${settings_types[index]%%"'"*}"
-      if [[ ${settings_types[index]} == *"number" ]]; then
-        settings_values[index]=$(echo "$value" | grep -Eo '[0-9]+(\.[0-9]+)?' | sed -n $value_number'p')
-        got_values[index]=1
-      elif [[ ${settings_types[index]} == *"string" ]]; then
-       settings_values[index]=$(echo "$value" | sed 's/,/\n/g'| grep . | sed -n $value_number'p')
-       got_values[index]=1
-      else
-        echo "Error: Unknown type"
-        exit 1
-      fi
+      prefix=$( echo "$line" | grep -o '#[^:]*:' | head -n1 )
+      dirty_value=${line#${prefix}}
+      value_number="${settings_types[index]%"'"*}"
+      IFS=',' read -a possible_values <<< "$dirty_value"
+      settings_values[index]=$(trim $(trim ${possible_values[value_number]} | sed "s/${settings_types[index]##*" "}$//" ))
+      got_values[index]=1
     fi
   done
-fi
 done < "$settings_file"
 
 
@@ -131,6 +130,7 @@ done
 seconds=$(echo "${settings_values[0]} / 1000000" | bc -l)
 graph_title=${settings_values[2]}", Ref.Time: "$(date -d "@$seconds" +"%d.%m.%Y %H:%M:%S.%6N")
 
+label_x="Time [ms]"
 if [ "$statistic_type" == "-a" ]; then
   label_y="Average[V]"
   line_title="Average 1:""$n_value"
@@ -141,18 +141,18 @@ else
   signal_to_voltage_coefficient="x*((2.048/2**16)*10**-((${settings_values[4]}+${settings_values[5]})/20.0))**2"
 fi
 
-label_x="Time [ms]"
-gnuplot_instructions+="sampling_rate = "${settings_values[3]}"\n"
-gnuplot_instructions+="timeshift = ${settings_values[1]}/sampling_rate*1000\n"
-gnuplot_instructions+="calc_time(row) = (row / sampling_rate)*$n_value*1000+timeshift\n"
-gnuplot_instructions+="signal_to_voltage(x) = $signal_to_voltage_coefficient\n"
-gnuplot_instructions+="set autoscale y\n"
-gnuplot_instructions+="set xrange[timeshift:*]\n"
-gnuplot_instructions+="set terminal png enhanced notransparent nointerlace truecolor font \"Liberation, 20\" size 2000,1400\nset out \"$output_file\"\n"
-gnuplot_instructions+="set title \"$graph_title\"\n"
-gnuplot_instructions+="set xlabel \"$label_x\"\n"
-gnuplot_instructions+="set ylabel \"$label_y\"\n"
-gnuplot_instructions+="plot \"< gnufooc $statistic_type -n$n_value < $data_file\" using (calc_time(\$0)):(signal_to_voltage(\$1)) with lines title \"$line_title\""
+gnuplot <<instuctions
+sampling_rate = "${settings_values[3]}"
+timeshift = ${settings_values[1]}/sampling_rate*1000
+calc_time(row) = (row / sampling_rate)*$n_value*1000+timeshift
+signal_to_voltage(x) = $signal_to_voltage_coefficient
+set autoscale y
+set xrange[timeshift:*]
+set terminal png enhanced notransparent nointerlace truecolor font "Liberation, 20" size 2000,1400
+set out "$output_file"
+set title "$graph_title"
+set xlabel "$label_x"
+set ylabel "$label_y"
+plot "< gnufooc $statistic_type -n$n_value < $data_file" using (calc_time(\$0)):(signal_to_voltage(\$1)) with lines title "$line_title"
+instuctions
 
-
-echo -e "$gnuplot_instructions" | gnuplot

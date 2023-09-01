@@ -1,13 +1,13 @@
 # Referrence Time Stamp - UNIX:1653923795556163us, Calendar: Mon May 30 17:16:35 2022
 # Initial Time Stamp:14769230samples, 1 s
-#        Sample Description       :This is a samoplenumber: 2
+#                                                                                                                                                                       Sample Description                                                                                                        :This is a sample number: 2
 # Data Description: DAST 20220530_171635556163     
 # Creator: DAST 20220428141143
 # Channel: 1
 # Sampling Freq.:14769230.769Hz
 # Sampling Freq. Nominator: 192000000 Hz
 # Sampling Freq. Denominator: 13
-# Pre-Amplifier Gain: 42 dB
+# Pre-Amplifier Gain: 42dB
 # Amplifier Gain: 30 dB
 useless data
 # Comment: This can be a file containing # Sampling Freq.: 1 Hz
